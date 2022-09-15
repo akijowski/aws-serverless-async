@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-app
+  aws-async-ref-arch-demo
   
-  Sample SAM Template for sam-app
+  Reference architecture for an asynchronous REST API using serverless infrastructure
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -43,5 +43,31 @@ Resources:
     Properties:
       LogGroupName: !Sub '/aws/apigw/${AWS::StackName}-access'
       RetentionInDays: 5
-
-Outputs:
+  ApiIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-api-role'
+      Description: !Sub 'Service Role for ${AWS::StackName} API'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+#      Policies:
+#        - PolicyName: DynamoDBRead
+#          PolicyDocument:
+#            Version: "2012-10-17"
+#            Statement:
+#              - Effect: Allow
+#                Action:
+#                  - "dynamodb:GetItem"
+#                  - "dynamodb:Scan"
+#                  - "dynamodb:Query"
+#                  - "dynamodb:BatchGetItem"
+#                  - "dynamodb:DescribeTable"
+#                Resource:
+#                  - foo

@@ -1,0 +1,15 @@
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "aws-async-ref-arch-demo"
+resolve_s3 = true
+s3_prefix = "aws-async-ref-arch-demo"
+confirm_changeset = true
+fail_on_empty_changeset = false
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+parameter_overrides = "EnvParam=\"dev\" FunctionAliasParam=\"LIVE\""
+image_repositories = []
+tags = "ApplicationName=\"AWS-Async-Ref-Arch-Demo\" Team=\"Kraken\""
+no_progressbar = true

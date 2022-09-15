@@ -32,10 +32,12 @@ paths:
       # validate the request params
       x-amazon-apigateway-request-validator: params-only
       # Make a request to DynamoDB
-      x-amazon-apigateway-request-integration:
+      x-amazon-apigateway-integration:
         type: aws
         httpMethod: POST
         passthroughBehavior: never
+        credentials:
+          Fn::GetAtt: ApiIamRole.Arn
         uri:
           Fn::Sub: arn:aws:apigateway:${AWS::Region}:dynamodb:action/Query
         # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
@@ -98,10 +100,6 @@ paths:
       responses:
         '204':
           description: Successful creation response
-          content:
-            text/plain:
-              schema:
-                type: string
           headers:
             X-SQS-Message-ID:
               description: The returned SQS Message ID
@@ -119,13 +117,14 @@ paths:
         type: aws
         httpMethod: POST
         passthroughBehavior: when_no_match
+        credentials:
+          Fn::GetAtt: ApiIamRole.Arn
         uri:
-          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:action/SendMessage
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path//${AWS::AccountId}/myqueue/
         requestParameters:
           # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
           # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html#API_SendMessage_RequestParameters
           "integration.request.querystring.MessageBody": "method.request.body"
-          "integration.request.querystring.QueueUrl": "$stageVariables.QueueURL"
         responses:
           default:
             statusCode: 500
@@ -168,10 +167,12 @@ paths:
       # validate the request params
       x-amazon-apigateway-request-validator: params-only
       # Make a request to DynamoDB
-      x-amazon-apigateway-request-integration:
+      x-amazon-apigateway-integration:
         type: aws
         httpMethod: POST
         passthroughBehavior: never
+        credentials:
+          Fn::GetAtt: ApiIamRole.Arn
         uri:
           Fn::Sub: arn:aws:apigateway:${AWS::Region}:dynamodb:action/GetItem
         # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
