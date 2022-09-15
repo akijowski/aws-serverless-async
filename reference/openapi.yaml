@@ -58,12 +58,13 @@ paths:
 
         responses:
           default:
-            statusCode: 500
+            # MUST be a string to map to the OpenAPI operator response codes
+            statusCode: '500'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
           "2\\d{2}":
-            statusCode: 200,
+            statusCode: '200'
             responseTemplates:
               application/json: |
                 #set($root = $input.path('$'))
@@ -78,12 +79,12 @@ paths:
                 #end
 
           "4\\d{2}":
-            statusCode: 400,
+            statusCode: '400'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
           "5\\d{2}":
-            statusCode: 500,
+            statusCode: '500'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
@@ -120,30 +121,36 @@ paths:
         credentials:
           Fn::GetAtt: ApiIamRole.Arn
         uri:
-          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path//${AWS::AccountId}/myqueue/
+          Fn::Sub:
+            - arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/${QueueName}/
+            - QueueName:
+                Fn::GetAtt:
+                  UserCreationQueue.QueueName
         requestParameters:
           # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
           # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html#API_SendMessage_RequestParameters
+          "integration.request.querystring.Action": "'SendMessage'"
           "integration.request.querystring.MessageBody": "method.request.body"
         responses:
           default:
-            statusCode: 500
+            # MUST be a string to map to the OpenAPI operator response codes
+            statusCode: '500'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
           "2\\d{2}":
-            statusCode: 204,
+            statusCode: '204'
             responseParameters:
               # Return the response message ID as a header
               # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html#API_SendMessage_ResponseElements
               "method.response.header.X-SQS-Message-ID": "integration.response.body.MessageID"
           "4\\d{2}":
-            statusCode: 400,
+            statusCode: '400'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
           "5\\d{2}":
-            statusCode: 500,
+            statusCode: '500'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
@@ -194,12 +201,12 @@ paths:
 
         responses:
           default:
-            statusCode: 500
+            statusCode: '500'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
           "2\\d{2}":
-            statusCode: 200,
+            statusCode: '200'
             responseTemplates:
               application/json: |
                 #set($item = $input.path('$.Item'))
@@ -211,12 +218,12 @@ paths:
                 }
 
           "4\\d{2}":
-            statusCode: 400,
+            statusCode: '400'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
           "5\\d{2}":
-            statusCode: 500,
+            statusCode: '500'
             responseTemplates:
               application/json:
                 "#set ($root=$input.path('$')) { \"message\": \"$root\" }"

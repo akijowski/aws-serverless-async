@@ -37,7 +37,6 @@ Resources:
       Variables:
         MessageIDIndex: bar
         TableName: foo
-        QueueURL: baz
   ApiAccessLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -57,17 +56,18 @@ Resources:
                 - apigateway.amazonaws.com
             Action:
               - "sts:AssumeRole"
-#      Policies:
-#        - PolicyName: DynamoDBRead
-#          PolicyDocument:
-#            Version: "2012-10-17"
-#            Statement:
-#              - Effect: Allow
-#                Action:
-#                  - "dynamodb:GetItem"
-#                  - "dynamodb:Scan"
-#                  - "dynamodb:Query"
-#                  - "dynamodb:BatchGetItem"
-#                  - "dynamodb:DescribeTable"
-#                Resource:
-#                  - foo
+      Policies:
+        - PolicyName: SQSSenderPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sqs:SendMessage"
+                Resource:
+                  - !GetAtt UserCreationQueue.Arn
+
+  UserCreationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-user-creation'
