@@ -1,0 +1,332 @@
+openapi: 3.0.3
+info:
+  title: Async User API
+  description: Async User API using AWS Serverless architecture
+  version: 1.0.0
+  contact:
+    name: Adam Kijowski
+    email: akijowski@twilio.com
+externalDocs:
+  description: Project repo
+  url: 'https://github.com/akijowski/aws-serverless-async'
+tags:
+  - name: user
+    description: user operations
+paths:
+  /status/{sqsMessageID}:
+    parameters:
+      - $ref: '#/components/parameters/SQSMessageIDPathParameter'
+    get:
+      tags:
+        - user
+      operationId: get-status-by-sqs-id
+      summary: Get the User status by the SQS message ID
+      description: Find the User ID in the DynamoDB database with the given SQS message ID
+      responses:
+        '200':
+          $ref: '#/components/responses/UserStatusResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+      # validate the request params
+      x-amazon-apigateway-request-validator: params-only
+      # Make a request to DynamoDB
+      x-amazon-apigateway-request-integration:
+        type: aws
+        httpMethod: POST
+        passthroughBehavior: never
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:dynamodb:action/Query
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-swagger-extensions-integration-requestTemplates.html
+        # https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+        requestTemplates:
+          'application/json': |
+            #set($params = $input.params())
+            {
+              "TableName": "$stageVariables.TableName",
+              "IndexName": "$stageVariables.MessageIDIndex",
+              "KeyConditionExpression": "partitionKeyName = :pk",
+              "ExpressionAttributeValues": "{":pk": "$util.escapeJavaScript($params.get('sqsMessageID'))"
+              "Limit": 1,
+              "ReturnedConsumedCapacity": "NONE"
+            }
+
+        responses:
+          default:
+            statusCode: 500
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+          "2\\d{2}":
+            statusCode: 200,
+            responseTemplates:
+              application/json: |
+                #set($root = $input.path('$'))
+                ## This is a sample comment
+                #if($root.Count > 0)
+                  #set($found = $items.path('$.Items[0].UserID.S')
+                  {
+                    "userID": "$found"
+                  }
+                #else
+                  #set($context.responseOverride.status = 404)
+                #end
+
+          "4\\d{2}":
+            statusCode: 400,
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+          "5\\d{2}":
+            statusCode: 500,
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+
+  /users:
+    post:
+      tags:
+        - user
+      operationId: post-users
+      summary: Create a new User
+      description: Add a new User creation request to SQS
+      requestBody:
+        $ref: '#/components/requestBodies/UserCreationRequest'
+      responses:
+        '204':
+          description: Successful creation response
+          content:
+            text/plain:
+              schema:
+                type: string
+          headers:
+            X-SQS-Message-ID:
+              description: The returned SQS Message ID
+              required: true
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+      # validate the request body
+      x-amazon-apigateway-request-validator: all
+      # Pass the request body to SQS:SendMessage
+      x-amazon-apigateway-integration:
+        type: aws
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:action/SendMessage
+        requestParameters:
+          # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
+          # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html#API_SendMessage_RequestParameters
+          "integration.request.querystring.MessageBody": "method.request.body"
+          "integration.request.querystring.QueueUrl": "$stageVariables.QueueURL"
+        responses:
+          default:
+            statusCode: 500
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+          "2\\d{2}":
+            statusCode: 204,
+            responseParameters:
+              # Return the response message ID as a header
+              # https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html#API_SendMessage_ResponseElements
+              "method.response.header.X-SQS-Message-ID": "integration.response.body.MessageID"
+          "4\\d{2}":
+            statusCode: 400,
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+          "5\\d{2}":
+            statusCode: 500,
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+
+  /users/{userID}:
+    parameters:
+      - $ref: '#/components/parameters/UserIDPathParameter'
+    get:
+      tags:
+        - user
+      operationId: get-users-by-id
+      summary: Retreive a User by ID
+      description: Find the User in the DynamoDB database
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+      # validate the request params
+      x-amazon-apigateway-request-validator: params-only
+      # Make a request to DynamoDB
+      x-amazon-apigateway-request-integration:
+        type: aws
+        httpMethod: POST
+        passthroughBehavior: never
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:dynamodb:action/GetItem
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/request-response-data-mappings.html
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-swagger-extensions-integration-requestTemplates.html
+        # https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+        requestTemplates:
+          'application/json': |
+            #set($params = $input.params())
+            {
+              "TableName": "$stageVariables.TableName",
+              "Key": {
+                "ID": {
+                  "S": "$util.escapeJavaScript($params.get('userID'))"
+                }
+              },
+              "ReturnedConsumedCapacity": "NONE"
+            }
+
+        responses:
+          default:
+            statusCode: 500
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+          "2\\d{2}":
+            statusCode: 200,
+            responseTemplates:
+              application/json: |
+                #set($item = $input.path('$.Item'))
+                {
+                  "ID": "$item.path('$.ID.S')",
+                  "Name": "$item.path('$.Name.S')",
+                  "Email": "$item.path('$.Email.S')",
+                  "CreatedAt": "$item.path('$.CreatedAt.N')"
+                }
+
+          "4\\d{2}":
+            statusCode: 400,
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+          "5\\d{2}":
+            statusCode: 500,
+            responseTemplates:
+              application/json:
+                "#set ($root=$input.path('$')) { \"message\": \"$root\" }"
+
+x-amazon-apigateway-request-validators:
+  all:
+    validateRequestBody: true
+    validateRequestParameters: true
+  params-only:
+    validateRequestBody: false
+    validateRequestParameters: true
+
+components:
+  parameters:
+    UserIDPathParameter:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: string
+    SQSMessageIDPathParameter:
+      name: sqsMessageID
+      in: path
+      required: true
+      schema:
+        type: string
+
+  requestBodies:
+    UserCreationRequest:
+      description: A User creation request
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UserCreation'
+
+  responses:
+    UserResponse:
+      description: A User response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'
+
+    UserStatusResponse:
+      description: A User Status response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              userID:
+                type: string
+                minLength: 16
+                description: the matching User ID
+                example: 99fd09ca-d9d3-4720-a9e2-48f999e9c1e2
+            required:
+              - userID
+
+    ErrorResponse:
+      description: a generic error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    UserCreation:
+      description: A User creation body
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 5
+          description: the user's name
+          example: John Doe
+        email:
+          type: string
+          minLength: 3
+          description: the user's email
+          example: jane@email.com
+      required:
+        - name
+        - email
+
+    User:
+      description: A User body
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/UserCreation'
+      properties:
+        ID:
+          type: string
+          minLength: 16
+          description: user ID
+          example: 99fd09ca-d9d3-4720-a9e2-48f999e9c1e2
+        createdAt:
+          type: number
+          description: user creation time as Unix epoch
+          example: 1663265626
+      required:
+        - ID
+        - createdAt
+
+    Error:
+      description: A generic error
+      type: object
+      properties:
+        message:
+          type: string
+          description: the error message
+          example: An unexpected error has occurred
+      required:
+        - message

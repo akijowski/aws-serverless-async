@@ -14,37 +14,34 @@ Globals:
       - x86_64
     Runtime: go1.x
   Api:
+    OpenApiVersion: 3.0.1
     TracingEnabled: True
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  UsersApi:
+    Type: AWS::Serverless::Api
     Properties:
-      CodeUri: hello-world/
-      Handler: hello-world
-      Runtime: go1.x
-      Architectures:
-        - x86_64
-      Events:
-        CatchAll:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /hello
-            Method: GET
-      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
-        Variables:
-          PARAM1: VALUE
+      Name: !Ref 'AWS::StackName'
+      Description: The REST API for the Users
+      Mode: merge
+      # AWS SAM will parse this OpenAPI spec for us and configure the API Gateway
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: reference/openapi.yaml
+      StageName: live
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogsGroup.Arn
+        Format: '{"caller":"$context.identity.caller","httpMethod":"$context.httpMethod","ip":"$context.identity.sourceIp","protocol":"$context.protocol","requestId":"$context.requestId","requestTime":"$context.requestTime","resourcePath":"$context.resourcePath","responseLength":"$context.responseLength","status":"$context.status","user":"$context.identity.user"}'
+      Variables:
+        MessageIDIndex: bar
+        TableName: foo
+        QueueURL: baz
+  ApiAccessLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigw/${AWS::StackName}-access'
+      RetentionInDays: 5
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldAPI:
-    Description: "API Gateway endpoint URL for Prod environment for First Function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "First Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
