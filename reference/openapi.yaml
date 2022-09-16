@@ -176,6 +176,8 @@ paths:
           $ref: '#/components/responses/UserResponse'
         '400':
           $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
         '500':
           $ref: '#/components/responses/ErrorResponse'
       # validate the request params
@@ -195,12 +197,11 @@ paths:
         # https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
         requestTemplates:
           'application/json': |
-            #set($params = $input.params())
             {
               "TableName": "$stageVariables.TableName",
               "Key": {
                 "ID": {
-                  "S": "$util.escapeJavaScript($params.get('userID'))"
+                  "S": "$util.escapeJavaScript($input.params('userID'))"
                 }
               },
               "ReturnedConsumedCapacity": "NONE"
@@ -217,12 +218,19 @@ paths:
             responseTemplates:
               application/json: |
                 #set($item = $input.path('$.Item'))
+                #if($item.path('$.ID.S') == "")
+                #set($context.responseOverride.status = 404)
+                {
+                  "message": "User not found"
+                }
+                #else
                 {
                   "ID": "$item.path('$.ID.S')",
                   "Name": "$item.path('$.Name.S')",
                   "Email": "$item.path('$.Email.S')",
                   "CreatedAt": "$item.path('$.CreatedAt.N')"
                 }
+                #end
 
           "4\\d{2}":
             statusCode: '400'
