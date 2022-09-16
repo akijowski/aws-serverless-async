@@ -33,10 +33,31 @@ Resources:
       StageName: live
       AccessLogSetting:
         DestinationArn: !GetAtt ApiAccessLogsGroup.Arn
-        Format: '{"caller":"$context.identity.caller","httpMethod":"$context.httpMethod","ip":"$context.identity.sourceIp","protocol":"$context.protocol","requestId":"$context.requestId","requestTime":"$context.requestTime","resourcePath":"$context.resourcePath","responseLength":"$context.responseLength","status":"$context.status","user":"$context.identity.user"}'
+        # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html#context-variable-reference-access-logging-only
+        Format: '{
+            "caller": "$context.identity.caller",
+            "httpMethod": "$context.httpMethod",
+            "ip": "$context.identity.sourceIp",
+            "protocol": "$context.protocol",
+            "requestId": "$context.requestId",
+            "requestTime":"$context.requestTime",
+            "resourcePath":"$context.resourcePath",
+            "responseLength":"$context.responseLength",
+            "responseLatency": "$context.responseLatency",
+            "status":"$context.status",
+            "user":"$context.identity.user",
+            "integration": {
+              "error": "$context.integration.error",
+              "status": "$context.integration.status",
+              "requestId": "$context.integration.requestId",
+              "latency": "$context.integration.latency"
+            },
+            "xrayTraceId": "$context.xrayTraceId"
+          }'
       Variables:
-        MessageIDIndex: bar
-        TableName: foo
+        # In the table resource
+        MessageIDIndex: SQSMessageIDToUserID
+        TableName: !Ref UserTable
   ApiAccessLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -66,8 +87,43 @@ Resources:
                   - "sqs:SendMessage"
                 Resource:
                   - !GetAtt UserCreationQueue.Arn
+        - PolicyName: DynamoDBReadPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "dynamodb:GetItem"
+                  - "dynamodb:Scan"
+                  - "dynamodb:Query"
+                  - "dynamodb:BatchGetItem"
+                  - "dynamodb:DescribeTable"
+                Resource:
+                  - !GetAtt UserTable.Arn
+                  - !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UserTable}/index/*'
 
   UserCreationQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${AWS::StackName}-user-creation'
+
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref 'AWS::StackName'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ID
+          AttributeType: S
+        - AttributeName: SQSMessageID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: SQSMessageIDToUserID
+          KeySchema:
+            - AttributeName: SQSMessageID
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY

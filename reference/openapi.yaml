@@ -25,6 +25,8 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/UserStatusResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
         '404':
           $ref: '#/components/responses/ErrorResponse'
         '500':
@@ -46,12 +48,13 @@ paths:
         # https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
         requestTemplates:
           'application/json': |
-            #set($params = $input.params())
             {
               "TableName": "$stageVariables.TableName",
               "IndexName": "$stageVariables.MessageIDIndex",
-              "KeyConditionExpression": "partitionKeyName = :pk",
-              "ExpressionAttributeValues": "{":pk": "$util.escapeJavaScript($params.get('sqsMessageID'))"
+              "KeyConditionExpression": "SQSMessageID = :pk",
+              "ExpressionAttributeValues": {
+                ":pk": {"S": "$util.escapeJavaScript($input.params('sqsMessageID'))" }
+              },
               "Limit": 1,
               "ReturnedConsumedCapacity": "NONE"
             }
@@ -67,15 +70,18 @@ paths:
             statusCode: '200'
             responseTemplates:
               application/json: |
-                #set($root = $input.path('$'))
+                #set($rootObj = $util.parseJson($input.path('$')))
                 ## This is a sample comment
-                #if($root.Count > 0)
-                  #set($found = $items.path('$.Items[0].UserID.S')
-                  {
-                    "userID": "$found"
-                  }
+                #if($rootObj.Count > 0)
+                #set($found = $rootObj.Items[0].UserID.S)
+                {
+                  "userID": "$found"
+                }
                 #else
-                  #set($context.responseOverride.status = 404)
+                #set($context.responseOverride.status = 404)
+                {
+                  "message": "message ID not found"
+                }
                 #end
 
           "4\\d{2}":
@@ -168,7 +174,7 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/UserResponse'
-        '404':
+        '400':
           $ref: '#/components/responses/ErrorResponse'
         '500':
           $ref: '#/components/responses/ErrorResponse'
