@@ -1,4 +1,4 @@
-package main
+package user
 
 import (
 	"encoding/json"
@@ -20,7 +20,8 @@ type User struct {
 	SQSMessageID string    `json:"sqsMessageId"`
 }
 
-func newUser(sqsMessage events.SQSMessage) (*User, error) {
+// New creates a User from the provided SQSMessage
+func New(sqsMessage events.SQSMessage) (*User, error) {
 	var user User
 	if err := json.Unmarshal([]byte(sqsMessage.Body), &user); err != nil {
 		return nil, err
@@ -31,7 +32,7 @@ func newUser(sqsMessage events.SQSMessage) (*User, error) {
 	return &user, nil
 }
 
-func (u *User) asDynamoInput(tableName string) (*dynamodb.PutItemInput, error) {
+func (u *User) AsDynamoInput(tableName string) (*dynamodb.PutItemInput, error) {
 	item, err := attributevalue.MarshalMap(u)
 	if err != nil {
 		return nil, err

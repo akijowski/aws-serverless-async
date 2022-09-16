@@ -17,7 +17,7 @@ func newDynamoClient(cfg aws.Config) *dynamodb.Client {
 	return dynamodb.NewFromConfig(cfg)
 }
 
-func saveUserToDynamo(ctx context.Context, api DynamoPutItemAPI, input *dynamodb.PutItemInput) error {
+func saveToDynamo(ctx context.Context, api DynamoPutItemAPI, input *dynamodb.PutItemInput) error {
 	_, err := api.PutItem(ctx, input)
 	return err
 }

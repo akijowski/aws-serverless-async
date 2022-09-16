@@ -1,4 +1,4 @@
-package main
+package user
 
 import (
 	"reflect"
@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-func TestNewUser(t *testing.T) {
+func TestNew(t *testing.T) {
 	cases := map[string]struct {
 		given     events.SQSMessage
 		want      *User
@@ -40,7 +40,7 @@ func TestNewUser(t *testing.T) {
 
 	for name, tt := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := newUser(tt.given)
+			got, err := New(tt.given)
 			if tt.shouldErr {
 				if err == nil {
 					t.Error("expected an error")
@@ -95,7 +95,7 @@ func TestAsDynamoInput(t *testing.T) {
 
 	for name, tt := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tt.given.asDynamoInput(tt.tableName)
+			got, err := tt.given.AsDynamoInput(tt.tableName)
 			if tt.shouldErr {
 				if err == nil {
 					t.Error("expected an error")

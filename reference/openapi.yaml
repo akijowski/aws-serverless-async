@@ -70,17 +70,16 @@ paths:
             statusCode: '200'
             responseTemplates:
               application/json: |
-                #set($rootObj = $util.parseJson($input.path('$')))
+                #set($count = $input.path('$.Count'))
                 ## This is a sample comment
-                #if($rootObj.Count > 0)
-                #set($found = $rootObj.Items[0].UserID.S)
+                #if($count > 0)
                 {
-                  "userID": "$found"
+                  "userID": "$input.path('$.Items[0].ID.S')"
                 }
                 #else
                 #set($context.responseOverride.status = 404)
                 {
-                  "message": "message ID not found"
+                  "message": "message ID not found, (count = $count)"
                 }
                 #end
 
@@ -218,17 +217,18 @@ paths:
             responseTemplates:
               application/json: |
                 #set($item = $input.path('$.Item'))
-                #if($item.path('$.ID.S') == "")
+                #set($id = $item.ID.S)
+                #if($id == "")
                 #set($context.responseOverride.status = 404)
                 {
-                  "message": "User not found"
+                  "message": "User not found, (item = $item)"
                 }
                 #else
                 {
-                  "ID": "$item.path('$.ID.S')",
-                  "Name": "$item.path('$.Name.S')",
-                  "Email": "$item.path('$.Email.S')",
-                  "CreatedAt": "$item.path('$.CreatedAt.N')"
+                  "ID": "$id",
+                  "name": "$item.Name.S",
+                  "email": "$item.Email.S",
+                  "createdAt": "$item.CreatedAt.S"
                 }
                 #end
 
@@ -288,15 +288,7 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              userID:
-                type: string
-                minLength: 16
-                description: the matching User ID
-                example: 99fd09ca-d9d3-4720-a9e2-48f999e9c1e2
-            required:
-              - userID
+            $ref: '#/components/schemas/UserStatus'
 
     ErrorResponse:
       description: a generic error response
@@ -336,12 +328,24 @@ components:
           description: user ID
           example: 99fd09ca-d9d3-4720-a9e2-48f999e9c1e2
         createdAt:
-          type: number
-          description: user creation time as Unix epoch
-          example: 1663265626
+          type: string
+          description: user creation time
+          example: '2022-09-15T18:13:46.059963909Z'
       required:
         - ID
         - createdAt
+
+    UserStatus:
+      description: A User status body
+      type: object
+      properties:
+        userID:
+          type: string
+          minLength: 16
+          description: the matching User ID
+          example: 99fd09ca-d9d3-4720-a9e2-48f999e9c1e2
+      required:
+        - userID
 
     Error:
       description: A generic error

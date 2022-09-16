@@ -10,6 +10,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+
+	"github.com/akijowski/aws-serverless-async/functions/create-user/user"
 )
 
 var logger *log.Logger
@@ -47,16 +49,13 @@ func main() {
 
 func handleMessage(ctx context.Context, message events.SQSMessage) error {
 	logger.Printf("handling SQS message %s\n", message.MessageId)
-	user, err := newUser(message)
+	u, err := user.New(message)
 	if err != nil {
 		return err
 	}
-	dynamoInput, err := user.asDynamoInput(tableName)
+	dynamoInput, err := u.AsDynamoInput(tableName)
 	if err != nil {
 		return err
 	}
-	if err = saveUserToDynamo(ctx, dynamoClient, dynamoInput); err != nil {
-		return err
-	}
-	return nil
+	return saveToDynamo(ctx, dynamoClient, dynamoInput)
 }

@@ -13,6 +13,7 @@ Globals:
     Architectures:
       - x86_64
     Runtime: go1.x
+    AutoPublishAlias: Live
   Api:
     OpenApiVersion: 3.0.1
     TracingEnabled: True
@@ -101,6 +102,32 @@ Resources:
                 Resource:
                   - !GetAtt UserTable.Arn
                   - !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UserTable}/index/*'
+
+  UserCreationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-user-creation'
+      Description: Read messages from the queue and make users
+      CodeUri: functions/createUser/
+      Handler: createUser
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt UserCreationQueue.QueueName
+        - DynamoDBWritePolicy:
+            TableName: !Ref UserTable
+      Events:
+        NewUserCreation:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt UserCreationQueue.Arn
+      Environment:
+        Variables:
+          DYNAMO_TABLE_NAME: !Ref UserTable
+  UserCreationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-user-creation'
+      RetentionInDays: 7
 
   UserCreationQueue:
     Type: AWS::SQS::Queue
