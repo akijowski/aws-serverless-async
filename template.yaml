@@ -5,7 +5,6 @@ Description: >
   
   Reference architecture for an asynchronous REST API using serverless infrastructure
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Timeout: 5
@@ -55,6 +54,13 @@ Resources:
             },
             "xrayTraceId": "$context.xrayTraceId"
           }'
+      # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-apigateway-stage-methodsetting.html
+#      MethodSettings:
+#        - ResourcePath: '/*'
+#          HttpMethod: '*'
+#          MetricsEnabled: true
+#          DataTraceEnabled: true
+#          LoggingLevel: Info
       Variables:
         # In the table resource
         MessageIDIndex: SQSMessageIDToUserID

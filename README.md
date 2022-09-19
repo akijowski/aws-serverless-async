@@ -66,3 +66,50 @@ The client is provided a GET endpoint to poll with the provided SQS MessageID.
 When a UserID is returned on the status endpoint, then a GET request can be made to retrieve the User with the provided ID.
 
 This pattern of having a client polling a status endpoint is not novel, but is unique to many of our existing architectures.
+
+## Evaluation
+
+### Load Testing
+
+I did not look at load testing the API because of time constraints.
+An educated guess regarding performance is that the response times should remain consistently low, so long as we are under any service quotas.
+In other words, by excluding Lambda invocations from our API requests, I do not anticipate any fluctuations in latency due to cold-starts or scaling.
+
+### Service Map
+
+Note that it is currently not possible to trace an SQS-to-Lambda invocation because of a limitation with X-Ray in Lambda environments.
+
+![Service Map](./docs/images/X-RayServiceMap.png)
+
+### API Response Times
+
+The following table captures the total round-trip response time as measured by AWS X-Ray traces.
+The response times of collaborating AWS services is broken out as an individual line item.
+
+| Path                    | Response Times (service) |
+|-------------------------|--------------------------|
+| POST /users             | 65ms (API Gateway)       |
+|                         | 28ms (SQS)               |
+| GET /status/{messageID} | 48ms (API Gateway)       |
+|                         | 18ms (DynamoDB)          |
+| GET /users/{userID}     | 36ms (API Gateway)       |
+|                         | 15ms (DynamoDB)          |
+
+### Lambda Processing Times
+
+The following is a trace of the Lambda processing messages in the queue from a cold execution environment.
+This duration would be passed to a client if this was performed synchronously through an API Gateway request.
+
+![Lambda Traces](./docs/images/AWSLambdaTraces.png)
+
+### Pros and Cons of Service Integrations
+
+Who doesn't love a good pro/con list?
+
+| :white_check_mark: Pro                                                                | :x: Con                                                                                                                  |
+|---------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| Removing Lambdas and using request and response mappings create a simpler design      | The documentation for how Service Integrations work is very limited                                                      |
+| API performance will be more consistent without Lambda invocations                    | The documentation for the OpenAPI extensions is very limited                                                             |
+| Asynchronous patterns allow for high availability at the cost of eventual consistency | Apache VTL documentation is very poor and a big part of writing a mapping template                                       |
+| Fewer components mean fewer points of failure                                         | Local testing of VTL templates is a challenge: need to run a custom servlet but will be missing any unique AWS functions |
+| Leveraging AWS Services provide "out-of-the-box" metrics and tracing                  |                                                                                                                          |
