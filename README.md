@@ -28,11 +28,15 @@ sequenceDiagram
     API->>+SQS: Transform and POST request
     SQS->>-API: Return MessageID
     API->>-Client: Return MessageID
+    loop
     Lambda->>+SQS: Poll for messages
     SQS->>-Lambda: Return batch of messages
+    alt batch has messages
     Lambda->>+DynamoDB: Transform message to user and persist
     DynamoDB->>-Lambda: Return user
     DynamoDB-->>DynamoDB: Update GSI with message ID and User ID
+    end
+    end
     loop
     Client->>+API: GET /status/{messageID}
     API->>+DynamoDB: Query GSI for message ID
